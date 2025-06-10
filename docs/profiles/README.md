@@ -244,9 +244,16 @@ First, we identify the following fundamental services that will be mapped to dif
 |         |                      | 200  | Video               | 22       | 2      | `dba-prem-video` (201) |
 |         |                      | 300  | Web/Data            | 23       | 3      | `dba-prem-web` (202)  |
 
-\<aside\>
+
 ✅ It's highlighted that for streaming service, two priorities are handled, aiming to create a hierarchy for video calls and meetings (higher priority) and another for live streams like those on platforms such as Twitch and Kick (lower priority). The latter services are very demanding in bandwidth consumption, and a delay or data loss in a stream is less critical than losing data in a meeting or video call.
-\</aside\>
+
+Here is a graphical representation of how megas was used depending on the service:
+
+![image](https://github.com/user-attachments/assets/31f4fdab-3411-438d-b9f4-fce10d6e31d1)
+
+Each ONT eth connectios has an specific vlan for a specific service, also, each service has a wifi SSID to identify which service is the final user using.
+
+![image](https://github.com/user-attachments/assets/415ae210-3f89-4c91-be18-da25c26e395c)
 
 -----
 
@@ -272,9 +279,8 @@ First, we identify the following fundamental services that will be mapped to dif
 [Huawei] description VlanForWebData
 ```
 
-\<aside\>
 ✅ Using `smart` allows you to flexibly assign the VLAN to interfaces (trunks, access ports) or GPON service-ports independently.
-\</aside\>
+
 
 ### 2\. DBA and Line Profiles
 
@@ -552,68 +558,3 @@ port vlan eth 4 300
 commit
 quit
 ```
-
-### 5\. TVWS Gateway Connection Configuration
-
-```
-EA5800-X2(config)#port vlan 13 0/4 1
-
-EA5800-X2(config)#interface mpu 0/4
-
-EA5800-X2(config-if-mpu-0/4)#native-vlan 1 vlan 13
-{ <cr>|dedicated-net-id<K> }:
-
-  Command:
-          native-vlan 1 vlan 13
-
-EA5800-X2(config-if-mpu-0/4)#
-```
-
------
-
-## Understanding Multiple GEM Ports on a Single T-CONT
-
-When you place multiple GEM Ports under the same T-CONT, you are multiplexing various types of traffic (or VLANs) that share the same upstream bandwidth guarantee and priority. Let's break it down:
-
-### 1\. T-CONT = Logical QoS Queue
-
-The T-CONT defines how much and with what priority upstream data will be transmitted (using your DBA Profile). It doesn't matter how many GEM Ports are associated with that T-CONT; the OLT assigns a single time window per cycle for all of them.
-
-### 2\. GEM Port = Service/VLAN Channel
-
-Each GEM Port acts as a "pipe" that carries a specific flow (usually a VLAN, a multicast service, etc.).
-
-**Example:**
-
-  * GEM 11 → VLAN 100 (voice traffic)
-  * GEM 12 → VLAN 200 (interactive data)
-  * GEM 13 → VLAN 300 (telemetry, back-end)
-
-### 3\. What You Achieve by Grouping them in the Same T-CONT:
-
-  * **Configuration Simplicity:** All these services use the same DBA policy (same queue, same guaranteed and best-effort settings).
-  * **Efficient Multiplexing:** If one service doesn't utilize its entire assigned window, another can use the leftover capacity within the same T-CONT.
-  * **QoS Uniformity:** You ensure that all these GEMs will have the same priority and bandwidth reservation.
-
-### 4\. What if You Need Different Guarantees?
-
-If you require distinct service levels (e.g., highly critical voice vs. best-effort data), then you should use multiple T-CONTs, one for each service class. Within each T-CONT, you would place the GEM Ports that belong to that class:
-
-| T-CONT | DBA Profile      | GEM Ports     | Services/VLANs                    |
-| :----- | :--------------- | :------------ | :-------------------------------- |
-| 1      | Fixed (Voice)    | 11, 12        | VLAN 100 (Voice), VLAN 101 (Fax)  |
-| 2      | Assured (Video)  | 21            | VLAN 200 (IPTV)                   |
-| 3      | Best-Effort (Data) | 31, 32, 33    | VLAN 300, 301, 302 (Data)         |
-
-### Direct Answers to Your Questions:
-
-  * **Why multiple GEMs on a single T-CONT?**
-    To transport multiple flows/VLANs that share the same bandwidth guarantee and priority.
-
-  * **What is achieved?**
-    Multiplexing related services without the complexity of creating more logical queues; all compete "within" the same time window.
-
-  * **Can I define a service type per GEM?**
-    No: the type of guarantee/priority is defined by the T-CONT, not by each GEM. If you want different guarantees, create multiple T-CONTs and assign the appropriate GEMs to each.
-
-This way, you control QoS at the logical queue (T-CONT) level and flexibly multiplex as many GEM Ports (VLANs/services) as you need within each class.
