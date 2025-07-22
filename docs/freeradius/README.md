@@ -114,8 +114,6 @@ The implementation utilizes MySQL/MariaDB as the backend database for scalable u
 
 #### Database Connection Configuration
 
-![mysql_connection_config](mysql_connection_config.png)
-
 The database configuration establishes secure connectivity between FreeRADIUS and the MySQL backend, enabling dynamic user authentication and real-time attribute assignment.
 
 ### SQL Module Activation
